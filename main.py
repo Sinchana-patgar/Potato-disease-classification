@@ -36,15 +36,23 @@ CLASS_INFO = {
 @st.cache_resource
 def load_model():
     model_dir = "models"
+
     keras_files = [
         f for f in os.listdir(model_dir)
         if f.endswith(".keras") and f.split(".")[0].isdigit()
     ]
+
     if not keras_files:
         st.error("No model found in the 'models/' directory.")
         st.stop()
+
     latest = max(keras_files, key=lambda f: int(f.split(".")[0]))
-    return tf.keras.models.load_model(os.path.join(model_dir, latest)), latest
+
+    model_path = os.path.join(model_dir, latest)
+
+    st.write("Loading model:", model_path)  # 👈 DEBUG LINE
+
+    return tf.keras.models.load_model(model_path), latest
 
 
 def predict(model, image: Image.Image):
