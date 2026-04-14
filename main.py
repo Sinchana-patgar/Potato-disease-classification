@@ -62,7 +62,7 @@ def predict(model, image: Image.Image):
 
 # ── UI ───────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Potato Disease Detector",
+    page_title="Potato Blight Disease Detector",
     page_icon="🥔",
     layout="centered",
 )
