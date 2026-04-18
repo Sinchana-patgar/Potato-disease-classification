@@ -124,6 +124,11 @@ if uploaded:
 else:
     st.info("Please upload an image to get started.", icon="📂")
 
+if pred_class == "Unknown":
+    st.warning(f"⚠️ This doesn't look like a potato leaf! (Confidence too low: {confidence}%)")
+else:
+    st.success(f"Prediction: {pred_class} ({confidence}%)")
+
 # ── Footer ───────────────────────────────────────────────────────────────────
 st.divider()
 st.caption("Model: CNN trained on PlantVillage dataset · 3 classes · 2027 images")
