@@ -46,9 +46,8 @@ def load_model():
         st.stop()
     latest = max(keras_files, key=lambda f: int(f.split(".")[0]))
     model_path = os.path.join(model_dir, latest)
-    st.write("Loading model:", model_path)  # 👈 DEBUG LINE
     return tf.keras.models.load_model(model_path), latest
-   
+
 
 def predict(model, image: Image.Image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
@@ -57,6 +56,11 @@ def predict(model, image: Image.Image):
     predictions = model.predict(img_array, verbose=0)
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
+
+    # ✅ Reject if model isn't confident enough
+    if confidence < 70:
+        return "Unknown", confidence, predictions[0]
+
     return CLASS_NAMES[idx], confidence, predictions[0]
 
 
@@ -95,25 +99,25 @@ if uploaded:
     with col2:
         with st.spinner("Analysing…"):
             pred_class, confidence, all_probs = predict(model, image)
-    if pred_class == "Unknown":
-        st.warning(f"⚠️ This doesn't look like a potato leaf! (Confidence too low: {confidence}%)")
-    else:
-        st.success(f"Prediction: {pred_class} ({confidence}%)")
 
-        info = CLASS_INFO[pred_class]
+        # ✅ Unknown / unrelated image check
+        if pred_class == "Unknown":
+            st.warning(f"⚠️ This doesn't look like a potato leaf! (Confidence too low: {confidence:.1f}%)")
+        else:
+            info = CLASS_INFO[pred_class]
 
-        st.markdown(f"### {info['emoji']} {info['label']}")
-        st.markdown(
-            f"<span style='font-size:2rem; font-weight:600; color:{info['color']}'>"
-            f"{confidence:.1f}% confidence</span>",
-            unsafe_allow_html=True,
-        )
+            st.markdown(f"### {info['emoji']} {info['label']}")
+            st.markdown(
+                f"<span style='font-size:2rem; font-weight:600; color:{info['color']}'>"
+                f"{confidence:.1f}% confidence</span>",
+                unsafe_allow_html=True,
+            )
 
-        st.markdown("**About**")
-        st.info(info["desc"])
+            st.markdown("**About**")
+            st.info(info["desc"])
 
-        st.markdown("**Recommended action**")
-        st.success(info["action"])
+            st.markdown("**Recommended action**")
+            st.success(info["action"])
 
     st.divider()
 
@@ -127,7 +131,6 @@ if uploaded:
 
 else:
     st.info("Please upload an image to get started.", icon="📂")
-
 
 # ── Footer ───────────────────────────────────────────────────────────────────
 st.divider()
