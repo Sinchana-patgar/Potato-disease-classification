@@ -95,6 +95,10 @@ if uploaded:
     with col2:
         with st.spinner("Analysing…"):
             pred_class, confidence, all_probs = predict(model, image)
+    if pred_class == "Unknown":
+        st.warning(f"⚠️ This doesn't look like a potato leaf! (Confidence too low: {confidence}%)")
+    else:
+        st.success(f"Prediction: {pred_class} ({confidence}%)")
 
         info = CLASS_INFO[pred_class]
 
@@ -124,10 +128,6 @@ if uploaded:
 else:
     st.info("Please upload an image to get started.", icon="📂")
 
-if pred_class == "Unknown":
-    st.warning(f"⚠️ This doesn't look like a potato leaf! (Confidence too low: {confidence}%)")
-else:
-    st.success(f"Prediction: {pred_class} ({confidence}%)")
 
 # ── Footer ───────────────────────────────────────────────────────────────────
 st.divider()
