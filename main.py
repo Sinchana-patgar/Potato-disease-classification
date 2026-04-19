@@ -6,7 +6,7 @@ import os
 
 # ── Config ──────────────────────────────────────────────────────────────────
 IMAGE_SIZE = 256
-CLASS_NAMES = ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy"]
+CLASS_NAMES = ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy", "unknown"]
 
 CLASS_INFO = {
     "Potato___Early_blight": {
@@ -30,6 +30,13 @@ CLASS_INFO = {
         "desc": "No signs of disease detected. The plant appears healthy.",
         "action": "Continue regular monitoring and preventive care.",
     },
+    "unknown": {
+        "label": "Unknown",
+        "color": "#6b7280",
+        "emoji": "⚪",
+        "desc": "This image does not appear to be a potato leaf.",
+        "action": "Please upload a clear image of a potato leaf.",
+    },
 }
 
 # ── Model loading ────────────────────────────────────────────────────────────
@@ -52,16 +59,16 @@ def load_model():
 def predict(model, image: Image.Image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0)           # (1, 256, 256, 3)
+    img_array = tf.expand_dims(img_array, 0)
     predictions = model.predict(img_array, verbose=0)
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
+    pred_class = CLASS_NAMES[idx]
 
-    # ✅ Reject if model isn't confident enough
-    if confidence < 70:
-        return "Unknown", confidence, predictions[0]
+    if pred_class == "unknown" or confidence < 70:
+        return "unknown", confidence, predictions[0]
 
-    return CLASS_NAMES[idx], confidence, predictions[0]
+    return pred_class, confidence, predictions[0]
 
 
 # ── UI ───────────────────────────────────────────────────────────────────────
@@ -74,14 +81,12 @@ st.set_page_config(
 st.title("🥔 Potato Disease Detector")
 st.caption("Upload a leaf image to detect Early Blight, Late Blight, or Healthy status.")
 
-# Load model (cached)
 with st.spinner("Loading model…"):
     model, model_file = load_model()
 st.success(f"Model loaded: `{model_file}`", icon="✅")
 
 st.divider()
 
-# Upload
 uploaded = st.file_uploader(
     "Upload a potato leaf image",
     type=["jpg", "jpeg", "png"],
@@ -100,32 +105,29 @@ if uploaded:
         with st.spinner("Analysing…"):
             pred_class, confidence, all_probs = predict(model, image)
 
-        # ✅ Unknown / unrelated image check
-        if pred_class == "Unknown":
-            st.warning(f"⚠️ This doesn't look like a potato leaf! (Confidence too low: {confidence:.1f}%)")
+        if pred_class == "unknown":
+            st.warning("⚠️ This doesn't look like a potato leaf! Please upload a clear potato leaf image.")
         else:
             info = CLASS_INFO[pred_class]
-
             st.markdown(f"### {info['emoji']} {info['label']}")
             st.markdown(
                 f"<span style='font-size:2rem; font-weight:600; color:{info['color']}'>"
                 f"{confidence:.1f}% confidence</span>",
                 unsafe_allow_html=True,
             )
-
             st.markdown("**About**")
             st.info(info["desc"])
-
             st.markdown("**Recommended action**")
             st.success(info["action"])
 
     st.divider()
 
-    # Probability bar chart for all classes
     st.subheader("Class probabilities")
+    display_classes = ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy"]
     prob_data = {
         CLASS_INFO[c]["label"]: float(p) * 100
         for c, p in zip(CLASS_NAMES, all_probs)
+        if c in display_classes
     }
     st.bar_chart(prob_data)
 
@@ -134,4 +136,4 @@ else:
 
 # ── Footer ───────────────────────────────────────────────────────────────────
 st.divider()
-st.caption("Model: CNN trained on PlantVillage dataset · 3 classes · 2027 images")
+st.caption("Model: CNN trained on PlantVillage dataset · 4 classes · 2027+ images")
