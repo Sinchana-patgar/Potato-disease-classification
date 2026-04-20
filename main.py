@@ -59,7 +59,7 @@ def load_model():
 def predict(model, image: Image.Image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0)
+    img_array = tf.expand_dims(img_array, 0)           # (1, 256, 256, 3)
     predictions = model.predict(img_array, verbose=0)
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
@@ -81,12 +81,14 @@ st.set_page_config(
 st.title("Potato Blight Disease Detector")
 st.caption("Upload a leaf image to detect Early Blight, Late Blight, or Healthy status.")
 
+# Load model (cached)
 with st.spinner("Loading model…"):
     model, model_file = load_model()
 st.success(f"Model loaded: `{model_file}`", icon="✅")
 
 st.divider()
 
+# Upload
 uploaded = st.file_uploader(
     "Upload a potato leaf image",
     type=["jpg", "jpeg", "png"],
@@ -106,34 +108,37 @@ if uploaded:
             pred_class, confidence, all_probs = predict(model, image)
 
         if pred_class == "unknown":
-            st.warning("⚠️ This doesn't look like a potato leaf! Please upload a clear potato leaf image.")
+            st.warning("This doesn't look like a potato leaf! Please upload a clear potato leaf image.")
         else:
             info = CLASS_INFO[pred_class]
+
             st.markdown(f"### {info['emoji']} {info['label']}")
             st.markdown(
                 f"<span style='font-size:2rem; font-weight:600; color:{info['color']}'>"
                 f"{confidence:.1f}% confidence</span>",
                 unsafe_allow_html=True,
             )
+
             st.markdown("**About**")
             st.info(info["desc"])
+
             st.markdown("**Recommended action**")
             st.success(info["action"])
 
     st.divider()
 
+    # Probability bar chart for all classes
     st.subheader("Class probabilities")
-    display_classes = ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy"]
     prob_data = {
         CLASS_INFO[c]["label"]: float(p) * 100
         for c, p in zip(CLASS_NAMES, all_probs)
-        if c in display_classes
+        if c in ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy"]
     }
     st.bar_chart(prob_data)
 
 else:
-    st.info("Please upload an image to get started.", icon="📂")
+    st.info("Please upload an image to get started.")
 
 # ── Footer ───────────────────────────────────────────────────────────────────
 st.divider()
-st.caption("Model: CNN trained on PlantVillage dataset · 4 classes · 2027+ images")
+st.caption("Model: CNN trained on PlantVillage dataset · 4 classes · 2027 images")
