@@ -101,7 +101,7 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("🥔 Potato Blight Disease Detector")
+st.title("Potato Blight Disease Detector")
 st.caption("Upload a potato leaf image to detect disease.")
 
 with st.spinner("Loading model..."):
