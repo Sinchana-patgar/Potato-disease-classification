@@ -48,23 +48,41 @@ CLASS_INFO = {
 # ── Load Model ─────────────────────────────────
 @st.cache_resource
 def load_model():
-    model_dir = "models"
+    try:
+        # ✅ Use simple relative path (works everywhere)
+        model_dir = "models"
 
-    if not os.path.exists(model_dir):
-        st.error("❌ 'models/' folder not found.")
+        # 🔍 Check folder exists
+        if not os.path.exists(model_dir):
+            st.error("❌ 'models/' folder not found. Please create it and add your model.")
+            st.stop()
+
+        # 🔍 Get all .keras files
+        keras_files = [f for f in os.listdir(model_dir) if f.endswith(".keras")]
+
+        if len(keras_files) == 0:
+            st.error("❌ No .keras model found inside 'models/' folder.")
+            st.stop()
+
+        # ✅ Pick latest model (by modified time)
+        keras_files.sort(key=lambda x: os.path.getmtime(os.path.join(model_dir, x)), reverse=True)
+        model_file = keras_files[0]
+
+        model_path = os.path.join(model_dir, model_file)
+
+        st.info(f"📂 Loading model from: {model_path}")
+
+        # ✅ Load model safely
+        model = tf.keras.models.load_model(model_path)
+
+        st.success("✅ Model loaded successfully!")
+
+        return model, model_file
+
+    except Exception as e:
+        st.error("❌ Model loading failed!")
+        st.exception(e)   # 🔥 shows full error in Streamlit
         st.stop()
-
-    keras_files = [f for f in os.listdir(model_dir) if f.endswith(".keras")]
-
-    if not keras_files:
-        st.error("❌ No .keras model found in models/")
-        st.stop()
-
-    model_path = os.path.join(model_dir, keras_files[0])
-    model = tf.keras.models.load_model(model_path)
-
-    return model, keras_files[0]
-
 # ── Prediction ─────────────────────────────────
 def predict(model, image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
