@@ -49,57 +49,41 @@ CLASS_INFO = {
 @st.cache_resource
 def load_model():
     try:
-        # ✅ Use simple relative path (works everywhere)
-        model_dir = "models"
+        model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 
-        # 🔍 Check folder exists
         if not os.path.exists(model_dir):
-            st.error("❌ 'models/' folder not found. Please create it and add your model.")
+            st.error("models/ folder not found.")
             st.stop()
 
-        # 🔍 Get all .keras files
         keras_files = [f for f in os.listdir(model_dir) if f.endswith(".keras")]
 
         if len(keras_files) == 0:
-            st.error("❌ No .keras model found inside 'models/' folder.")
+            st.error("No .keras model found inside models/ folder.")
             st.stop()
 
-        # ✅ Pick latest model (by modified time)
         keras_files.sort(key=lambda x: os.path.getmtime(os.path.join(model_dir, x)), reverse=True)
         model_file = keras_files[0]
-
         model_path = os.path.join(model_dir, model_file)
 
-        st.info(f"📂 Loading model from: {model_path}")
-
-        # ✅ Load model safely
         model = tf.keras.models.load_model(model_path)
-
-        st.success("✅ Model loaded successfully!")
-
         return model, model_file
 
     except Exception as e:
-        st.error("❌ Model loading failed!")
-        st.exception(e)   # 🔥 shows full error in Streamlit
+        st.error("Model loading failed!")
+        st.exception(e)
         st.stop()
+
 # ── Prediction ─────────────────────────────────
 def predict(model, image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
-
-    img_array = img_array / 255.0   # ✅ normalization
     img_array = tf.expand_dims(img_array, 0)
-
     predictions = model.predict(img_array, verbose=0)
-
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
-
     pred_class = CLASS_NAMES[idx]
 
-    # ✅ Unknown handling
-    if confidence < 60:
+    if pred_class == "unknown" or confidence < 70:
         return "unknown", confidence, predictions[0]
 
     return pred_class, confidence, predictions[0]
@@ -114,19 +98,13 @@ st.set_page_config(
 st.title("🥔 Potato Blight Disease Detector")
 st.caption("Upload a potato leaf image to detect disease.")
 
-# Load model
 with st.spinner("Loading model..."):
     model, model_file = load_model()
 
 st.success(f"Model loaded: {model_file}")
-
 st.divider()
 
-# Upload
-uploaded = st.file_uploader(
-    "Upload leaf image",
-    type=["jpg", "jpeg", "png"]
-)
+uploaded = st.file_uploader("Upload leaf image", type=["jpg", "jpeg", "png"])
 
 if uploaded:
     image = Image.open(uploaded).convert("RGB")
@@ -140,35 +118,32 @@ if uploaded:
         with st.spinner("Analyzing..."):
             pred_class, confidence, probs = predict(model, image)
 
-        info = CLASS_INFO[pred_class]
-
-        st.markdown(f"### {info['emoji']} {info['label']}")
-        st.markdown(
-            f"<h2 style='color:{info['color']}'>{confidence:.2f}% confidence</h2>",
-            unsafe_allow_html=True
-        )
-
-        st.markdown("**About**")
-        st.info(info["desc"])
-
-        st.markdown("**Recommended Action**")
-        st.success(info["action"])
+        if pred_class == "unknown":
+            st.warning("This doesn't look like a potato leaf! Please upload a clear potato leaf image.")
+        else:
+            info = CLASS_INFO[pred_class]
+            st.markdown(f"### {info['emoji']} {info['label']}")
+            st.markdown(
+                f"<h2 style='color:{info['color']}'>{confidence:.2f}% confidence</h2>",
+                unsafe_allow_html=True
+            )
+            st.markdown("**About**")
+            st.info(info["desc"])
+            st.markdown("**Recommended Action**")
+            st.success(info["action"])
 
     st.divider()
 
-    # ── Probability Chart (only 3 classes) ──
     st.subheader("Class Probabilities")
-
     prob_data = {
         CLASS_INFO[c]["label"]: float(p) * 100
         for c, p in zip(CLASS_NAMES, probs)
+        if c != "unknown"
     }
-
     st.bar_chart(prob_data)
 
 else:
     st.info("Upload an image to begin.")
 
-# ── Footer ────────────────────────────────────
 st.divider()
-st.caption("CNN Model · 4 classes+Plantvillage dataset (confidence-based)")
+st.caption("CNN Model · 4 classes · PlantVillage dataset")
