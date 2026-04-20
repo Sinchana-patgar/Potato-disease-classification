@@ -4,141 +4,153 @@ import numpy as np
 from PIL import Image
 import os
 
-# ── Config ──────────────────────────────────────────────────────────────────
+# ── Config ─────────────────────────────────────
 IMAGE_SIZE = 256
-CLASS_NAMES = ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy", "unknown"]
+
+CLASS_NAMES = [
+    "Potato___Early_blight",
+    "Potato___Late_blight",
+    "Potato___healthy",
+    "unknown"
+]
 
 CLASS_INFO = {
     "Potato___Early_blight": {
         "label": "Early Blight",
         "color": "#f59e0b",
         "emoji": "🟡",
-        "desc": "Caused by Alternaria solani. Look for dark brown spots with concentric rings on lower leaves.",
-        "action": "Apply copper-based fungicide. Remove affected leaves early.",
+        "desc": "Caused by Alternaria solani. Dark brown spots with concentric rings.",
+        "action": "Apply copper-based fungicide. Remove infected leaves.",
     },
     "Potato___Late_blight": {
         "label": "Late Blight",
         "color": "#ef4444",
         "emoji": "🔴",
-        "desc": "Caused by Phytophthora infestans. Water-soaked lesions that turn brown/black rapidly.",
-        "action": "Apply mancozeb or chlorothalonil. Ensure good drainage.",
+        "desc": "Caused by Phytophthora infestans. Rapid black/brown lesions.",
+        "action": "Use mancozeb or chlorothalonil. Improve drainage.",
     },
     "Potato___healthy": {
         "label": "Healthy",
         "color": "#22c55e",
         "emoji": "🟢",
-        "desc": "No signs of disease detected. The plant appears healthy.",
-        "action": "Continue regular monitoring and preventive care.",
+        "desc": "No disease detected.",
+        "action": "Maintain regular care.",
     },
     "unknown": {
         "label": "Unknown",
         "color": "#6b7280",
         "emoji": "⚪",
-        "desc": "This image does not appear to be a potato leaf.",
-        "action": "Please upload a clear image of a potato leaf.",
+        "desc": "Not a potato leaf or unclear image.",
+        "action": "Upload a clear potato leaf image.",
     },
 }
 
-# ── Model loading ────────────────────────────────────────────────────────────
-
+# ── Load Model ─────────────────────────────────
 @st.cache_resource
 def load_model():
-    model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
-    keras_files = [
-        f for f in os.listdir(model_dir)
-        if f.endswith(".keras") and f.split(".")[0].isdigit()
-    ]
-    if not keras_files:
-        st.error("No model found in the 'models/' directory.")
+    model_dir = "models"
+
+    if not os.path.exists(model_dir):
+        st.error("❌ 'models/' folder not found.")
         st.stop()
-    latest = max(keras_files, key=lambda f: int(f.split(".")[0]))
-    model_path = os.path.join(model_dir, latest)
-    return tf.keras.models.load_model(model_path), latest
 
+    keras_files = [f for f in os.listdir(model_dir) if f.endswith(".keras")]
 
-def predict(model, image: Image.Image):
+    if not keras_files:
+        st.error("❌ No .keras model found in models/")
+        st.stop()
+
+    model_path = os.path.join(model_dir, keras_files[0])
+    model = tf.keras.models.load_model(model_path)
+
+    return model, keras_files[0]
+
+# ── Prediction ─────────────────────────────────
+def predict(model, image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0)           # (1, 256, 256, 3)
+
+    img_array = img_array / 255.0   # ✅ normalization
+    img_array = tf.expand_dims(img_array, 0)
+
     predictions = model.predict(img_array, verbose=0)
+
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
+
     pred_class = CLASS_NAMES[idx]
 
-    if pred_class == "unknown" or confidence < 70:
+    # ✅ Unknown handling
+    if confidence < 60:
         return "unknown", confidence, predictions[0]
 
     return pred_class, confidence, predictions[0]
 
-
-# ── UI ───────────────────────────────────────────────────────────────────────
+# ── UI ─────────────────────────────────────────
 st.set_page_config(
     page_title="Potato Blight Disease Detector",
     page_icon="🥔",
-    layout="centered",
+    layout="centered"
 )
 
-st.title("Potato Blight Disease Detector")
-st.caption("Upload a leaf image to detect Early Blight, Late Blight, or Healthy status.")
+st.title("🥔 Potato Blight Disease Detector")
+st.caption("Upload a potato leaf image to detect disease.")
 
-# Load model (cached)
-with st.spinner("Loading model…"):
+# Load model
+with st.spinner("Loading model..."):
     model, model_file = load_model()
-st.success(f"Model loaded: `{model_file}`", icon="✅")
+
+st.success(f"Model loaded: {model_file}")
 
 st.divider()
 
 # Upload
 uploaded = st.file_uploader(
-    "Upload a potato leaf image",
-    type=["jpg", "jpeg", "png"],
-    help="Supports JPG and PNG formats.",
+    "Upload leaf image",
+    type=["jpg", "jpeg", "png"]
 )
 
 if uploaded:
     image = Image.open(uploaded).convert("RGB")
 
-    col1, col2 = st.columns([1, 1], gap="large")
+    col1, col2 = st.columns(2)
 
     with col1:
-        st.image(image, caption="Uploaded image", use_container_width=True)
+        st.image(image, caption="Uploaded Image", use_container_width=True)
 
     with col2:
-        with st.spinner("Analysing…"):
-            pred_class, confidence, all_probs = predict(model, image)
+        with st.spinner("Analyzing..."):
+            pred_class, confidence, probs = predict(model, image)
 
-        if pred_class == "unknown":
-            st.warning("This doesn't look like a potato leaf! Please upload a clear potato leaf image.")
-        else:
-            info = CLASS_INFO[pred_class]
+        info = CLASS_INFO[pred_class]
 
-            st.markdown(f"### {info['emoji']} {info['label']}")
-            st.markdown(
-                f"<span style='font-size:2rem; font-weight:600; color:{info['color']}'>"
-                f"{confidence:.1f}% confidence</span>",
-                unsafe_allow_html=True,
-            )
+        st.markdown(f"### {info['emoji']} {info['label']}")
+        st.markdown(
+            f"<h2 style='color:{info['color']}'>{confidence:.2f}% confidence</h2>",
+            unsafe_allow_html=True
+        )
 
-            st.markdown("**About**")
-            st.info(info["desc"])
+        st.markdown("**About**")
+        st.info(info["desc"])
 
-            st.markdown("**Recommended action**")
-            st.success(info["action"])
+        st.markdown("**Recommended Action**")
+        st.success(info["action"])
 
     st.divider()
 
-    # Probability bar chart for all classes
-    st.subheader("Class probabilities")
+    # ── Probability Chart (only 3 classes) ──
+    st.subheader("Class Probabilities")
+
     prob_data = {
         CLASS_INFO[c]["label"]: float(p) * 100
-        for c, p in zip(CLASS_NAMES, all_probs)
-        if c in ["Potato___Early_blight", "Potato___Late_blight", "Potato___healthy"]
+        for c, p in zip(CLASS_NAMES, probs)
     }
+
     st.bar_chart(prob_data)
 
 else:
-    st.info("Please upload an image to get started.")
+    st.info("Upload an image to begin.")
 
-# ── Footer ───────────────────────────────────────────────────────────────────
+# ── Footer ────────────────────────────────────
 st.divider()
-st.caption("Model: CNN trained on PlantVillage dataset · 4 classes · 2027 images")
+st.caption("CNN Model · 4 classes+Plantvillage dataset (confidence-based)")
