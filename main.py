@@ -1,5 +1,4 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 from PIL import Image
 import os
@@ -49,6 +48,7 @@ CLASS_INFO = {
 @st.cache_resource
 def load_model():
     try:
+        import keras
         model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 
         if not os.path.exists(model_dir):
@@ -65,7 +65,7 @@ def load_model():
         model_file = keras_files[0]
         model_path = os.path.join(model_dir, model_file)
 
-        model = tf.keras.models.load_model(model_path)
+        model = keras.models.load_model(model_path)
         return model, model_file
 
     except Exception as e:
@@ -75,9 +75,10 @@ def load_model():
 
 # ── Prediction ─────────────────────────────────
 def predict(model, image):
+    import keras
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
-    img_array = tf.keras.preprocessing.image.img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0)
+    img_array = keras.utils.img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)
     predictions = model.predict(img_array, verbose=0)
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
