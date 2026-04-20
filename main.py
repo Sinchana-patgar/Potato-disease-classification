@@ -84,16 +84,23 @@ def predict(model, image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
+
     predictions = model.predict(img_array, verbose=0)
+
+    print("Pred shape:", predictions.shape)
+
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
+
+    if idx >= len(CLASS_NAMES):
+        return None, confidence, predictions[0]
+
     pred_class = CLASS_NAMES[idx]
 
     if confidence < 70:
         return None, confidence, predictions[0]
 
     return pred_class, confidence, predictions[0]
-
 # ── UI ─────────────────────────────────────────
 st.set_page_config(
     page_title="Potato Blight Disease Detector",
