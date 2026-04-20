@@ -37,14 +37,15 @@ CLASS_INFO = {
         "action": "Maintain regular care.",
     },
 }
-
+st.write("Current working dir:", os.getcwd())
+st.write("Full model path:", model_path)
 # ── Load Model ─────────────────────────────────
 @st.cache_resource
 def load_model():
     try:
         st.write("Loading model...")  # DEBUG
 
-        model_dir = "models"
+        model_dir = "./models"
 
         if not os.path.exists(model_dir):
             st.error(f"{model_dir} folder not found.")
@@ -64,7 +65,7 @@ def load_model():
         )
 
         model_file = keras_files[0]
-        model_path = os.path.join(model_dir, model_file)
+        model_path = os.path.abspath(os.path.join(model_dir, model_file))
 
         st.write("Loading:", model_path)  # DEBUG
 
