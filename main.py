@@ -1,4 +1,5 @@
 import streamlit as st
+import tensorflow as tf
 import numpy as np
 from PIL import Image
 import os
@@ -9,8 +10,7 @@ IMAGE_SIZE = 256
 CLASS_NAMES = [
     "Potato___Early_blight",
     "Potato___Late_blight",
-    "Potato___healthy",
-    "unknown"
+    "Potato___healthy"
 ]
 
 CLASS_INFO = {
@@ -35,20 +35,12 @@ CLASS_INFO = {
         "desc": "No disease detected.",
         "action": "Maintain regular care.",
     },
-    "unknown": {
-        "label": "Unknown",
-        "color": "#6b7280",
-        "emoji": "⚪",
-        "desc": "Not a potato leaf or unclear image.",
-        "action": "Upload a clear potato leaf image.",
-    },
 }
 
 # ── Load Model ─────────────────────────────────
 @st.cache_resource
 def load_model():
     try:
-        import keras
         model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 
         if not os.path.exists(model_dir):
@@ -65,7 +57,7 @@ def load_model():
         model_file = keras_files[0]
         model_path = os.path.join(model_dir, model_file)
 
-        model = keras.models.load_model(model_path)
+        model = tf.keras.models.load_model(model_path)
         return model, model_file
 
     except Exception as e:
@@ -75,17 +67,16 @@ def load_model():
 
 # ── Prediction ─────────────────────────────────
 def predict(model, image):
-    import keras
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
-    img_array = keras.utils.img_to_array(img)
+    img_array = tf.keras.preprocessing.image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
     predictions = model.predict(img_array, verbose=0)
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
     pred_class = CLASS_NAMES[idx]
 
-    if pred_class == "unknown" or confidence < 70:
-        return "unknown", confidence, predictions[0]
+    if confidence < 70:
+        return None, confidence, predictions[0]
 
     return pred_class, confidence, predictions[0]
 
@@ -119,7 +110,7 @@ if uploaded:
         with st.spinner("Analyzing..."):
             pred_class, confidence, probs = predict(model, image)
 
-        if pred_class == "unknown":
+        if pred_class is None:
             st.warning("This doesn't look like a potato leaf! Please upload a clear potato leaf image.")
         else:
             info = CLASS_INFO[pred_class]
@@ -139,7 +130,6 @@ if uploaded:
     prob_data = {
         CLASS_INFO[c]["label"]: float(p) * 100
         for c, p in zip(CLASS_NAMES, probs)
-        if c != "unknown"
     }
     st.bar_chart(prob_data)
 
@@ -147,4 +137,4 @@ else:
     st.info("Upload an image to begin.")
 
 st.divider()
-st.caption("CNN Model · 4 classes · PlantVillage dataset")
+st.caption("CNN Model · 3 classes · PlantVillage dataset")
