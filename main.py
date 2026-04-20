@@ -1,8 +1,9 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 from PIL import Image
 import os
+import tensorflow as tf
+tf.get_logger().setLevel('ERROR')
 
 # ── Config ─────────────────────────────────────
 IMAGE_SIZE = 256
@@ -41,30 +42,42 @@ CLASS_INFO = {
 @st.cache_resource
 def load_model():
     try:
-        model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+        st.write("Loading model...")  # DEBUG
+
+        model_dir = "models"
 
         if not os.path.exists(model_dir):
-            st.error("models/ folder not found.")
+            st.error(f"{model_dir} folder not found.")
             st.stop()
 
         keras_files = [f for f in os.listdir(model_dir) if f.endswith(".keras")]
+
+        st.write("Found files:", keras_files)  # DEBUG
 
         if len(keras_files) == 0:
             st.error("No .keras model found inside models/ folder.")
             st.stop()
 
-        keras_files.sort(key=lambda x: os.path.getmtime(os.path.join(model_dir, x)), reverse=True)
+        keras_files.sort(
+            key=lambda x: os.path.getmtime(os.path.join(model_dir, x)),
+            reverse=True
+        )
+
         model_file = keras_files[0]
         model_path = os.path.join(model_dir, model_file)
 
+        st.write("Loading:", model_path)  # DEBUG
+
         model = tf.keras.models.load_model(model_path)
+
+        st.write("Model loaded successfully!")  # DEBUG
+
         return model, model_file
 
     except Exception as e:
         st.error("Model loading failed!")
         st.exception(e)
         st.stop()
-
 # ── Prediction ─────────────────────────────────
 def predict(model, image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
