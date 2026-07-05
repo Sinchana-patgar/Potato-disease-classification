@@ -7,6 +7,7 @@ tf.get_logger().setLevel('ERROR')
 
 # ── Config ─────────────────────────────────────
 IMAGE_SIZE = 256
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 CLASS_NAMES = [
     "Potato___Early_blight",
@@ -42,7 +43,7 @@ CLASS_INFO = {
 @st.cache_resource
 def load_trained_model():
     try:
-        model_dir = "./models"
+        model_dir = os.path.join(BASE_DIR, "models")
 
         if not os.path.exists(model_dir):
             st.error(f"{model_dir} folder not found.")
@@ -60,7 +61,7 @@ def load_trained_model():
         )
 
         model_file = keras_files[0]
-        model_path = os.path.abspath(os.path.join(model_dir, model_file))
+        model_path = os.path.join(model_dir, model_file)
 
         model = tf.keras.models.load_model(model_path)
 
