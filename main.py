@@ -39,6 +39,20 @@ CLASS_INFO = {
     },
 }
 
+def is_leaf_like(image):
+    img_small = image.resize((100, 100))
+    arr = np.array(img_small).astype(float) / 255.0
+
+    r, g, b = arr[:,:,0], arr[:,:,1], arr[:,:,2]
+
+    # green or brown/yellow dominant pixels (leaf/disease colors)
+    green_mask = (g > r) & (g > b * 0.8)
+    brown_mask = (r > 0.3) & (g > 0.2) & (b < 0.3) & (r > b)
+
+    plant_ratio = np.mean(green_mask | brown_mask)
+
+    return plant_ratio > 0.25  # at least 25% plant-like pixels
+
 # ── Load Model ─────────────────────────────────
 @st.cache_resource
 def load_trained_model():
@@ -123,10 +137,14 @@ if uploaded:
     with col1:
         st.image(image, caption="Uploaded Image", use_container_width=True)
 
+
+   
     with col2:
         with st.spinner("Analyzing..."):
-            pred_class, confidence, probs = predict(model, image)
-
+            if not is_leaf_like(image):
+                pred_class, confidence, probs = None, 0, [0, 0, 0]
+            else:
+                pred_class, confidence, probs = predict(model, image)
         if pred_class is None:
             st.warning("This doesn't look like a potato leaf! Please upload a clear potato leaf image.")
         else:
