@@ -72,26 +72,30 @@ def load_trained_model():
         st.exception(e)
         st.stop()
 
-# ── Prediction ─────────────────────────────────
+
+# ── Prediction ────────────────────────────────
 def predict(model, image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
 
-    predictions = model.predict(img_array, verbose=0)
+    predictions = model.predict(img_array, verbose=0)[0]
 
-    idx = int(np.argmax(predictions[0]))
-    confidence = float(np.max(predictions[0])) * 100
+    sorted_probs = np.sort(predictions)[::-1]
+    top1, top2 = sorted_probs[0], sorted_probs[1]
 
-    if idx >= len(CLASS_NAMES):
-        return None, confidence, predictions[0]
+    idx = int(np.argmax(predictions))
+    confidence = float(top1) * 100
+    margin = float(top1 - top2) * 100
+
+    CONFIDENCE_THRESHOLD = 85
+    MARGIN_THRESHOLD = 20
+
+    if confidence < CONFIDENCE_THRESHOLD or margin < MARGIN_THRESHOLD:
+        return None, confidence, predictions
 
     pred_class = CLASS_NAMES[idx]
-
-    if confidence < 70:
-        return None, confidence, predictions[0]
-
-    return pred_class, confidence, predictions[0]
+    return pred_class, confidence, predictions
 
 # ── UI ─────────────────────────────────────────
 st.set_page_config(
