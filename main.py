@@ -17,31 +17,31 @@ CLASS_NAMES = [
 CLASS_INFO = {
     "Potato___Early_blight": {
         "label": "Early Blight",
+        "emoji": "🟠",
         "color": "#f59e0b",
         "desc": "Caused by Alternaria solani. Dark brown spots with concentric rings.",
         "action": "Apply copper-based fungicide. Remove infected leaves.",
     },
     "Potato___Late_blight": {
         "label": "Late Blight",
+        "emoji": "🔴",
         "color": "#ef4444",
         "desc": "Caused by Phytophthora infestans. Rapid black/brown lesions.",
         "action": "Use mancozeb or chlorothalonil. Improve drainage.",
     },
     "Potato___healthy": {
         "label": "Healthy",
+        "emoji": "🟢",
         "color": "#22c55e",
         "desc": "No disease detected.",
         "action": "Maintain regular care.",
     },
 }
-st.write("Current working dir:", os.getcwd())
-st.write("Full model path:", model_path)
+
 # ── Load Model ─────────────────────────────────
 @st.cache_resource
-def load_model():
+def load_trained_model():
     try:
-        st.write("Loading model...")  # DEBUG
-
         model_dir = "./models"
 
         if not os.path.exists(model_dir):
@@ -49,8 +49,6 @@ def load_model():
             st.stop()
 
         keras_files = [f for f in os.listdir(model_dir) if f.endswith(".keras")]
-
-        st.write("Found files:", keras_files)  # DEBUG
 
         if len(keras_files) == 0:
             st.error("No .keras model found inside models/ folder.")
@@ -64,11 +62,7 @@ def load_model():
         model_file = keras_files[0]
         model_path = os.path.abspath(os.path.join(model_dir, model_file))
 
-        st.write("Loading:", model_path)  # DEBUG
-
         model = tf.keras.models.load_model(model_path)
-
-        st.write("Model loaded successfully!")  # DEBUG
 
         return model, model_file
 
@@ -76,6 +70,7 @@ def load_model():
         st.error("Model loading failed!")
         st.exception(e)
         st.stop()
+
 # ── Prediction ─────────────────────────────────
 def predict(model, image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
@@ -83,8 +78,6 @@ def predict(model, image):
     img_array = np.expand_dims(img_array, axis=0)
 
     predictions = model.predict(img_array, verbose=0)
-
-    print("Pred shape:", predictions.shape)
 
     idx = int(np.argmax(predictions[0]))
     confidence = float(np.max(predictions[0])) * 100
@@ -98,6 +91,7 @@ def predict(model, image):
         return None, confidence, predictions[0]
 
     return pred_class, confidence, predictions[0]
+
 # ── UI ─────────────────────────────────────────
 st.set_page_config(
     page_title="Potato Blight Disease Detector",
@@ -109,7 +103,7 @@ st.title("Potato Blight Disease Detector")
 st.caption("Upload a potato leaf image to detect disease.")
 
 with st.spinner("Loading model..."):
-    model, model_file = load_model()
+    model, model_file = load_trained_model()
 
 st.success(f"Model loaded: {model_file}")
 st.divider()
